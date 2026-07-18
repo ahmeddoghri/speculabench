@@ -9,24 +9,28 @@
 ![license](https://img.shields.io/badge/license-MIT-black)
 
 > **Speculative decoding lives or dies on one number: the acceptance rate.**
-> This models the whole accept/reject loop with no GPU and no weights, so you
-> can find your speedup sweet spot in a second: `python -m speculabench.eval`.
+> Everything else in the paper is decoration. This models the whole accept/reject
+> loop with no GPU and no weights, so you find your speedup sweet spot before
+> your cloud bill finds you: `python -m speculabench.eval`.
 
-Everybody wants speculative decoding because the pitch is irresistible: a tiny
-draft model guesses several tokens ahead, the big model checks them all in one
-pass, and every correct guess is basically free. Papers quote 2x to 3x speedups
-and you nod along.
+Every speculative decoding pitch sounds the same. Tiny draft model guesses
+ahead, big model checks the guesses in one pass, correct guesses are basically
+free, 2 to 3x speedup, slide advances, everyone claps. Nobody claps at the part
+where you actually have to pick a draft length and an acceptance rate and find
+out the hard way that you picked wrong.
 
-Then you go to implement it and hit the questions nobody put on the slide. How
-long should the draft be? What acceptance rate do I actually need before this
-pays off? At what point does a longer draft start losing money because the big
-model keeps rejecting the tail?
+I got tired of nodding along to speedup numbers I couldn't reproduce, so I
+built the spreadsheet nobody hands you. How long should the draft be? What
+acceptance rate do you need before this is worth the code review? At what
+draft length does the model start proposing tokens that just get thrown away,
+turning your speedup into a very expensive coin flip?
 
-speculabench answers those without a single GPU. It models the accept/reject
-dynamics faithfully (this is the standard accounting from Leviathan et al. and
-Chen et al., 2023) and reports the one thing you care about: real speedup, in
-units of expensive forward passes. You turn the knobs, you watch the number
-move, you stop guessing.
+speculabench answers all of that with zero GPUs and zero weights. It models
+the accept/reject dynamics faithfully (this is the standard accounting from
+Leviathan et al. and Chen et al., 2023), not a hand-wavy approximation, and
+reports the one number that actually pays your AWS bill: real speedup, in
+units of expensive forward passes you didn't have to run. Turn the knobs,
+watch the number move, stop guessing, stop nodding.
 
 ---
 
@@ -54,11 +58,12 @@ draft length vs speedup (agreement=0.8):
           12        29.9%      2.09x          4.59
 ```
 
-Read the second table top to bottom and you can see the whole tradeoff. Longer
-drafts pack more tokens into each verification pass, but the acceptance rate
-falls as you reach further ahead, and past a point the rejected tail stops
-paying for itself. Here the turnover is at length 6. That turnover point is the
-entire engineering decision, and now you can see it instead of guessing it.
+Read the second table top to bottom and the whole tradeoff falls out for free.
+Longer drafts pack more tokens into each verification pass, but the acceptance
+rate drops as you reach further ahead, and past a point the rejected tail is
+just you paying compute to be told no. Here the turnover is at length 6. That
+one number is the entire engineering decision everyone argues about in
+standup, and now you can see it instead of vibing it.
 
 ## Install
 
@@ -102,8 +107,9 @@ cost, measured in expensive target passes:
 ```
 
 The guarantee, straight from the papers: the output is byte-for-byte identical
-to what the target would have produced on its own. Speculation only changes
-speed, never the answer. That is why it is safe to turn on in production.
+to what the target would have produced alone. Speculation only changes speed,
+never the answer, which is the one property that lets you turn this on in
+production without your on-call engineer developing a facial tic.
 
 ## The knobs that matter
 
