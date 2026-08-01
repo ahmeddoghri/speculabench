@@ -28,3 +28,5 @@ jobs:
         run: python examples/quickstart.py
       - name: Run benchmark
         run: python -m speculabench.eval
+      - name: Run i.i.d.-vs-bursty comparison
+        run: python -m speculabench.eval_v2

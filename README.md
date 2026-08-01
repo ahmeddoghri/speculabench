@@ -3,7 +3,7 @@
 **Model what speculative decoding actually buys you, before you spend a week wiring up real weights.**
 
 ![CI](https://github.com/ahmeddoghri/speculabench/actions/workflows/ci.yml/badge.svg)
-![tests](https://img.shields.io/badge/tests-7%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-16%20passing-brightgreen)
 ![python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![deps](https://img.shields.io/badge/runtime%20deps-none-success)
 ![license](https://img.shields.io/badge/license-MIT-black)
@@ -12,6 +12,13 @@
 > Everything else in the paper is decoration. This models the whole accept/reject
 > loop with no GPU and no weights, so you find your speedup sweet spot before
 > your cloud bill finds you: `python -m speculabench.eval`.
+>
+> **Update:** the original model draws match/mismatch independently at every
+> position. Real drafts are bursty, long streaks of agreement on easy spans,
+> clustered misses on hard ones, and that changes the answer: at the *same*
+> nominal 80% agreement rate, a bursty draft's real sweet spot is
+> `draft_length=8` at 2.89x, not `draft_length=6` at 2.48x. Modeled and
+> measured below. `python -m speculabench.eval_v2`.
 
 Every speculative decoding pitch sounds the same. Tiny draft model guesses
 ahead, big model checks the guesses in one pass, correct guesses are basically
@@ -64,6 +71,57 @@ rate drops as you reach further ahead, and past a point the rejected tail is
 just you paying compute to be told no. Here the turnover is at length 6. That
 one number is the entire engineering decision everyone argues about in
 standup, and now you can see it instead of vibing it.
+
+## The i.i.d. assumption is quietly load-bearing
+
+"Not a hand-wavy approximation" is true of the accept/reject *bookkeeping*
+(that part is exactly the Leviathan/Chen accounting). It is not true of
+*where* the draft is right and wrong. `DraftModel` decides match or
+mismatch at each position with an independent coin flip. Nothing about how
+language models actually fail looks like that: a draft nails long
+templated or highly predictable spans in unbroken streaks, then misses in
+clusters on the hard spans, because whatever makes one token hard to
+predict usually makes the next few hard too. That's autocorrelation, and
+i.i.d. Bernoulli has none of it by construction.
+
+It matters because the whole point of this tool is picking a draft length,
+and the ideal draft length depends on the *shape* of accept/reject runs,
+not just their average rate. `speculabench/model_v2.py` adds
+`BurstyDraftModel`: a two-state Markov chain with a `burstiness` knob,
+calibrated so its marginal match rate matches the nominal `agreement`
+within half a percentage point at n=20,000 regardless of burstiness
+(`burstiness=0.0` reduces exactly to i.i.d.). Sweep both models at the
+identical 80% agreement rate and identical seed:
+
+```bash
+python -m speculabench.eval_v2
+```
+```
+draft length vs speedup at matched agreement=0.80 (iid vs bursty, burstiness=0.40)
+==============================================================================
+ draft_len  iid accept  iid speedup  bursty accept  bursty speedup
+------------------------------------------------------------------------------
+         1       79.9%        1.64x          80.2%           1.64x
+         2       72.1%        2.04x          75.3%           2.09x
+         4       59.7%        2.42x          66.6%           2.62x
+         6       49.4%        2.48x          59.2%           2.84x
+         8       41.6%        2.41x          52.6%           2.89x
+        12       30.6%        2.12x          43.2%           2.81x
+
+iid sweet spot:    draft_length=6   (2.48x)
+bursty sweet spot: draft_length=8   (2.89x)
+```
+
+Same marginal accuracy, a different recommended draft length and a
+meaningfully higher achievable speedup, because long agreement streaks pack
+more accepted tokens into each verification pass than the i.i.d. model ever
+lets them. This holds up on a second, held-out seed evaluated exactly once
+(sweet spot again shifts from `draft_length=6` to `draft_length=8`, 2.49x
+to 2.94x). The original `model.py`/`eval.py` are untouched, so the
+published i.i.d. numbers above still reproduce exactly; `BurstyDraftModel`
+is opt-in, not a silent default change. Measure your own draft's real
+run-length distribution (not just its average agreement) before trusting
+either model's recommended draft length in production.
 
 ## Install
 
@@ -126,7 +184,7 @@ expect in production.
 ## Tests
 
 ```bash
-pip install pytest && pytest -q      # 7 passing
+pip install pytest && pytest -q      # 16 passing
 ```
 
 ## License
