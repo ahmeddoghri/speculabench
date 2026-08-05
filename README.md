@@ -2,7 +2,6 @@
 
 **Model what speculative decoding actually buys you, before you spend a week wiring up real weights.**
 
-![CI](https://github.com/ahmeddoghri/speculabench/actions/workflows/ci.yml/badge.svg)
 ![tests](https://img.shields.io/badge/tests-16%20passing-brightgreen)
 ![python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![deps](https://img.shields.io/badge/runtime%20deps-none-success)
