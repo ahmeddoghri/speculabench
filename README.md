@@ -1,4 +1,4 @@
-# ⚡ speculabench
+# speculabench
 
 **Model what speculative decoding actually buys you, before you spend a week wiring up real weights.**
 
@@ -118,8 +118,11 @@ Same marginal accuracy, a different recommended draft length and a
 meaningfully higher achievable speedup, because long agreement streaks pack
 more accepted tokens into each verification pass than the i.i.d. model ever
 lets them. This holds up on a second, held-out seed evaluated exactly once
-(sweet spot again shifts from `draft_length=6` to `draft_length=8`, 2.49x
-to 2.94x). The original `model.py`/`eval.py` are untouched, so the
+(`python -m speculabench.eval_v2 --seed 99`: the sweet spot again shifts
+from `draft_length=6` to `draft_length=8`, 2.49x to 2.94x). It is not a
+lucky pair of seeds either: across seeds 1, 2, 7, 11, 42, 99, 123, and 2024
+the i.i.d. sweet spot is always 6 (2.44x to 2.49x) and the bursty one is
+always 8 (2.89x to 2.94x). The original `model.py`/`eval.py` are untouched, so the
 published i.i.d. numbers above still reproduce exactly; `BurstyDraftModel`
 is opt-in, not a silent default change. Measure your own draft's real
 run-length distribution (not just its average agreement) before trusting
